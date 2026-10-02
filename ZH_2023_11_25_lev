@@ -1,0 +1,26 @@
+getwd()
+
+plot(evek, fizetes,
+	xlab = "A vallalatnal eltoltotott evek", ylab = "Havi kereset",
+	main = "Fizetes az eltoltott evek fuggvenyeben",
+	pch = 19, col = "steelblue")
+abline(lm(fizetes ~ evek), col = "red", lwd = 2 )
+
+max(fizetes)
+min(fizetes)
+max(fizetes)- min(fizetes)
+
+--Vallalatnal eltoltott evek histogramja --
+hist(evek, freq = FALSE, col = "lightblue", border = "white",
+	main = "A vallalatnal eltoltott evek -- suruseg", 
+	xlab = "ev", ylab = "gyakorisag")
+lines(density(evek), col = "red", lwd = 2)
+
+-- Tekinthetok-e a fizetesek normalis eloszlasunak? --
+hist(fizetes, freq = FALSE, col = "lightblue", border = "white",
+	main = "Berek -- suruseg", 
+	xlab = "fizetes", ylab = "gyakorisag")
+lines(density(fizetes), col = "red", lwd = 2)
+shapiro.test(fizetes)
+
+ks.test(fizetes, "pnorm", mean(fizetes), sd(fizetes))
