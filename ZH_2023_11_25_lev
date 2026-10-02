@@ -22,5 +22,63 @@ hist(fizetes, freq = FALSE, col = "lightblue", border = "white",
 	xlab = "fizetes", ylab = "gyakorisag")
 lines(density(fizetes), col = "red", lwd = 2)
 shapiro.test(fizetes)
-
+" Shapiro-wilk proba  p = 0.0355 < 0.05 -> tehat 0.05 szinten
+elutasisutjuk a normalitast. A kolomogorov-smirnov proba p = 424,
+az nem utasit el -- de a KS konzervativ, ha a parametereket
+mintabol becsuljuk. A hisztogram ketpup ezert a shapiro
+eredmenyet fogadom el: Nem tekintheto normalis eloszlasunka
 ks.test(fizetes, "pnorm", mean(fizetes), sd(fizetes))
+
+hist(fizetes, freq = FALSE, breaks = 12, col = "grey90", border = "white",
+main = "Berek + rajuk illesztett normalis")
+curve(dnorm(x, mean(fizetes), sd(fizetes)), add = TRUE, col = "red", lwd = 2)
+qqnorm(fizetes); qqline(fizetes, col = "red")
+
+# =====================================================================
+#  1(f)  Tekinthetjuk-e azonosnak a vezetok es a beosztottak berenek
+#        varhato erteket, VAGY az adatok arra utalnak, hogy a vezetoke
+#        szignifikansan nagyobb (0.05 szint)? Mekkora a ket atlag? 5p
+
+vezeto = fizetes[adat$beosztas == 1]
+beosztott = fizetes[adat$beosztas == 2]
+length(vezeto; length(beosztott)
+mean(vezeto)
+mean(beosztott)
+# 1. LEPES: egyforma-e a ket szoras? (ettol fugg a t-proba fajtaja)
+var.test(vezeto, beosztott)
+#   F = 1.1104, p-value = 0.7297  -> p >= 0.05, a szorasok azonosnak vehetok
+#   -> var.equal = TRUE
+
+# 2. LEPES: a kerdes KETRESZES. "azonos-e VAGY nagyobb-e" -> a masodik
+#    resz EGYOLDALU ellenhipotezis. Erdemes mindkettot leirni.
+t.test(vezeto, beosztott, var.equal = TRUE)                     # ketoldali
+#   t = 7.8979, df = 78, p-value = 1.483e-11
+t.test(vezeto, beosztott, alternative = "greater", var.equal = TRUE)
+#   t = 7.8979, p-value = 7.417e-12
+
+# VALASZ: a vezetok atlagbere 441.8, a beosztottake 340.7.
+# Mindket p-ertek jocskan 0.05 alatt -> NEM tekinthetok azonosnak;
+# az adatok azt tamasztjak ala, hogy a vezetok bere szignifikansan
+# nagyobb a 0.05 szinten.
+#
+# MELYIK SORRENDBEN? Az alternative = "greater" mindig az ELSO argumentumra
+# vonatkozik: itt "a vezeto nagyobb, mint a beosztott". Ha forditva irod
+# be a ket vektort, "less" kell hozza.
+# =====================================================================
+#  1(g)  Tekinthetjuk-e azonosnak a vezetok es beosztottak berenek
+#        szorasat, vagy szignifikans az elteres (0.05)? 5p
+# =====================================================================
+sd(vezeto)
+sd(beosztott)
+var.test(vezeto, beosztott)
+#   95% CI a szorasnegyzetek hanyadosara: [0.5545 ; 2.9126] -- tartalmazza az 1-et
+
+# VALASZ: p = 0.730 >= 0.05 -> IGEN, a ket szoras azonosnak tekintheto.
+# (Ez ugyanaz a proba, amit az (f)-hez elokeszitesnek futtattunk. Ha a
+#  dolgozatban kulon kerdezik, kulon is le kell irni.)
+
+# =====================================================================
+#  1(h)  Tekinthetjuk-e fuggetlennek a beosztast es a vegzettseget? 5p
+# =====================================================================
+# KET KATEGORIAS ismerv -> khi-negyzet fuggetlensegvizsgalat
+#
