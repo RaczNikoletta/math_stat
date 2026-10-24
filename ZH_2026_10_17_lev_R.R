@@ -1,255 +1,373 @@
-Mit szeretnél csinálni / vizsgálni?
-│
-├── 0. MODELLFELTÉTELEK ELLENŐRZÉSE
-│   ├── Normalitásvizsgálat (Folytonos változónál)
-│   │   ├── Statisztikai teszttel (n < 5000) ──────────> shapiro.test(x)
-│   │   └── Vizuálisan (Q-Q plot) ─────────────────────> qqnorm(x); qqline(x, col="red")
-│   └── Szórások homogenitása (2 független csoportnál)
-│        └── F-próba ───────────────────────────────────> var.test(x ~ csoport)
-│
-├── 1. ÁTLAG / MEDIÁN (Folytonos vagy sorrendi változó)
-│   ├── 1 csoport összehasonlítása egy megadott értékkel (pl. μ = 120?)
-│   │   ├── Normális eloszlás ─────────────────────────> t.test(x, mu = 120) [1-mintás t-próba]
-│   │   └── NEM normális / Ordinális ──────────────────> wilcox.test(x, mu = 120) [1-mintás Wilcoxon]
-│   │
-│   ├── 2 független csoport összehasonlítása (pl. nők vs. férfiak)
-│   │   ├── Normális eloszlás ──> Szórások egyenlők?
-│   │   │                  ├── Igen ────────────────────> t.test(x ~ csoport, var.equal = TRUE)
-│   │   │                  └── Nem / Bizonytalan ───────> t.test(x ~ csoport) [Welch t-próba]
-│   │   └── NEM normális / Ordinális ──────────────────> wilcox.test(x ~ csoport) [Mann-Whitney U-próba]
-│   │
-│   ├── 2 összefüggő / párosított csoport (pl. előtte-utána mérés)
-│   │   ├── Normális eloszlás ─────────────────────────> t.test(x, y, paired = TRUE) [Páros t-próba]
-│   │   └── NEM normális / Ordinális ──────────────────> wilcox.test(x, y, paired = TRUE) [Wilcoxon rangpróba]
-│   │
-│   ├── 3+ független csoport (pl. 3 különböző kezelés)
-│   │   ├── Normális eloszlás + Homogén szórás ────────> aov(x ~ csoport) [Egytényezős ANOVA]
-│   │   └── NEM normális / Ordinális ──────────────────> kruskal.test(x ~ csoport) [Kruskal-Wallis próba]
-│   │
-│   └── 3+ párosított / ismételt méréses csoport
-│        ├── Normális eloszlás ─────────────────────────> lmer() / ezANOVA() [Ismételt méréses ANOVA]
-│        └── NEM normális / Ordinális ──────────────────> friedman.test(y ~ x | block) [Friedman-próba]
-│
-├── 2. TELJES ELOSZLÁS (Alak, szórás, eltolódás egyszerre)
-│   ├── 1 minta illeszkedése teoretikus eloszláshoz ─> ks.test(x, "pnorm", mean(x), sd(x))
-│   └── 2 független minta eloszlásának egyezősége ──> ks.test(x, y) [Kétmintás Kolmogorov-Smirnov]
-│
-├── 3. KAPCSOLAT / KORRELÁCIÓ (2 folytonos/ordinális változó között)
-│   ├── Mindkét változó normális (lineáris kapcsolat) ─> cor.test(x, y, method = "pearson")
-│   └── NEM normális / Ordinális (monoton kapcsolat) ──> cor.test(x, y, method = "spearman")
-│
-├── 4. SZÓRÁS / VARIANCIA (Variabilitás önmagában)
-│   ├── 1 minta szórásának konfidenciaintervalluma ──> qchisq() alapú képlet --
-		# TIPP: csinalj belole fuggvenyt, hogy a ZH-n ne kelljen fejbol irni:
-		ci.szoras <- function(x, szint = 0.95) {
-  		n <- length(x); a <- 1 - szint; s2 <- var(x)
-  		sqrt(c((n-1)*s2 / qchisq(1 - a/2, n-1),
-         	(n-1)*s2 / qchisq(    a/2, n-1)))
+# =====================================================================
+#  MATEMATIKAI STATISZTIKA -- UNIVERSAL R CHEATSHEET
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# 0. SEGÉDFÜGGVÉNYEK (Másold be a script elejére!)
+# ---------------------------------------------------------------------
+
+# Konfidenciaintervallum szórásra (R-ben nincs rá gyári fuggvény)
+ci.szoras <- function(x, conf.level = 0.95) {
+  n <- length(x)
+  alpha <- 1 - conf.level
+  s2 <- var(x)
+  ci_var <- c((n - 1) * s2 / qchisq(1 - alpha/2, df = n - 1),
+             (n - 1) * s2 / qchisq(    alpha/2, df = n - 1))
+  ci_sd <- sqrt(ci_var)
+  names(ci_sd) <- c("alsó", "felső")
+  return(ci_sd)
 }
-ci.szoras(vs, 0.9)                  # ugyanaz
-│   └── 2 független csoport szórásának egyezősége ───> var.test(x ~ csoport)
-│
-├── 5. KATEGÓRIÁS VÁLTOZÓK / ARÁNYOK (Gyakoriságok)
-│   ├── Két kategóriás változó függetlensége ────────> chisq.test(table(a, b))
-│   └── 1 arány összehasonlítása egy értékkel ───────> prop.test(k, n, p = 0.5)
-│
-├── 6. GRAFIKONOK ÉS VIZUALIZÁCIÓ (Adatok és teoretikus eloszlások)
-│   ├── Minta eloszlásának ábrázolása (Empirikus)
-│   │   ├── Hisztogram (Gyakoriság) ───────────────────> hist(x, main="Cím", xlab="X")
-│   │   ├── Hisztogram (Relatív / Sűrűség skála) ─────> hist(x, freq = FALSE, breaks = 15)
-│   │   ├── Empirikus sűrűségfüggvény (Becsült görbe) ─> plot(density(x))  vagy  lines(density(x), col="blue")
-│   │   ├── Q-Q plot (Normalitás ellenőrzés) ──────────> qqnorm(x); qqline(x, col="red")
-│   │   └── Boxplot (Sora, medián, kiugró értékek) ────> boxplot(x ~ csoport)
-│   │
-│   ├── Elméleti eloszlások rajzolása (Sűrűségfüggvény görbe)
-│   │   ├── Új görbe rajzolása ────────────────────────> curve(dnorm(x, mean=0, sd=1), from=-4, to=4)
-│   │   ├── Görbe ráragasztása meglévő ábrára ──────────> curve(dt(x, df=5), add = TRUE, col="red")
-│   │   └── Normális görbe hisztogramra illesztése ────> hist(x, freq=FALSE); curve(dnorm(x, mean(x), sd(x)), add=TRUE)
-│   │
-│   └── Kapcsolatok és kategóriák ábrázolása
-│       ├── Pontdiagram (2 folytonos változó) ──────────> plot(x, y, xlab="X", ylab="Y")
-│       └── Oszlopdiagram (Kategóriás / gyakoriságok) ──> barplot(table(x))
-│
-└── 7. R ELOSZLÁS PREFIXEK LOGIKÁJA (d, p, q, r szabály)
-├── d (Density / Sűrűség) ────> Bemenet: x (tengelyérték) ───────────> f(x) magassága adott pontban ─────> dnorm(x, ...), dt(x, ...), dchisq(x, ...)
-├── p (Probability / CDF) ────> Bemenet: q (kvantilis érték) ────────> P(X <= q) alatti terület (0..1) ──> pnorm(q, szf), pt(q, ...), pchisq(q, ...)
-├── q (Quantile / Inverz) ────> Bemenet: p (valószínűség 0..1) ─────> Kvantilis érték megadott P-hez ───> qnorm(p, ...), qt(p, ...), qchisq(p, szf, lowertail?)
-└── r (Random generation) ────> Bemenet: n (mintaelemszám / db) ──────> Véletlen minta generálása ────────> rnorm(n, ...), rt(n, ...), rchisq(n, ...)
-# --- 2(a) A systoles ertekek FELSO DECILISE ---------------------------
-# decilis = tizedelo. FELSO decilis = 0.9-kvantilis (a felette levo 10%).
-quantile(vs, probs = 0.9)
-adat <- read.csv2(file = "../zh_examples/20241109_zh_levelezo_R_adatfile.csv")
 
-# A reprodukálhatóság kedvéért beállítunk egy kezdőértéket
-set.seed(123)
+# Egy mintás próba szórásra: H0: sd = sigma0, H1: sd < sigma0 (vagy > / !=)
+proba.szoras <- function(x, sigma0, alternative = c("two.sided", "less", "greater")) {
+  alternative <- match.arg(alternative)
+  n <- length(x)
+  s2 <- var(x)
+  T_stat <- (n - 1) * s2 / (sigma0^2)
+  if (alternative == "less") {
+    p_val <- pchisq(T_stat, df = n - 1)
+  } else if (alternative == "greater") {
+    p_val <- pchisq(T_stat, df = n - 1, lower.tail = FALSE)
+  } else {
+    p_val <- 2 * min(pchisq(T_stat, df = n - 1), pchisq(T_stat, df = n - 1, lower.tail = FALSE))
+  }
+  return(list(statistic = T_stat, df = n - 1, p.value = p_val))
+}
 
-# 1. Szimulációs elemszám megadása
-N <- 100000
-
-# 2. Véletlen minták generálása
-X1 <- rnorm(N, mean = 100, sd = 5)
-X2 <- rnorm(N, mean = 90, sd = 6)
-
-
-=====================================================================
-#  1(a)  Abrazolja kozos koordinatarendszerben egy F(5,10) es egy
-#        F(10,1) szabadsagi foku v.v. surusegfuggvenyet! 5p
-# =====================================================================
-curve(df(x, df1 = 5, df2 = 10), from = 0, to = 5, lwd = 2, col = "blue",
-      ylim = c(0, 0.8), xlab = "x", ylab = "f(x)",
-      main = "F(5,10) es F(10,1) surusegfuggvenye")
-curve(df(x, df1 = 10, df2 = 1), add = TRUE, lwd = 2, col = "red")
-legend("topright", c("F(5,10)", "F(10,1)"), col = c("blue","red"),
-       lwd = 2, bty = "n")
-abline(v = 4, lty = 3)      # a (b) kerdes helye
 
 # =====================================================================
-#  1(b)  Minek nagyobb a valoszinusege, hogy a 4 kis kornyezetebol
-#        veszi fel az erteket? 3p
+# 1. ELOSZLÁSOK ÉS GRAFIKÁK (EGYMINTÁS, ELMÉLETI FELADATOK)
 # =====================================================================
-df(4, df1 = 5,  df2 = 10)      # 0.02190
-df(4, df1 = 10, df2 = 1)       # 0.04246
+
+# --- Surusegfuggvenyek es abra-készítés ---
+# d... = sűrűség (f), p... = eloszlásfüggvény (F), q... = kvantilis (inverz F)
+# Típusok: norm, t, chisq, f, gamma, exp, logis
+
+# Sűrűségfuggvény rajzolás (pl. Gamma: k=5, lambda=0.5 -> shape=5, rate=0.5)
+curve(dgamma(x, shape = 5, rate = 0.5), from = 0, to = 30, col = "blue", lwd = 2)
+# Két sűrűségfüggvény egy ábrán:
+curve(dt(x, df = 10), from = -4, to = 4, col = "blue", lwd = 2)
+curve(df(x, df1 = 3, df2 = 5), add = TRUE, col = "red", lwd = 2)
+
+# 1. Tapasztalati eloszlásfüggvény objektum létrehozása és kirajzolása
+fn_tapasztalati <- ecdf(ido)
+
+plot(fn_tapasztalati, xlim = c(0, 10), 
+     col = "blue", lwd = 2, ylab = "F(x)", 
+     main = "Eloszlásfüggvények összehasonlítása")
+
+# 2. Elméleti normális eloszlásfüggvény ráillesztése (add = TRUE fontos!)
+curve(pnorm(x, mean = mean(ido), sd = sd(ido)), 
+      from = 0, to = 10, 
+      col = "red", lwd = 2, lty = 2, 
+      add = TRUE)
+
+# 3. Jelmagyarázat (Legend) hozzáadása
+legend("topleft", 
+       legend = c("Tapasztalati", "Normális"),
+       col = c("blue", "red"), 
+       lty = c(1, 2), 
+       lwd = 2)
+
+# --- "Melyik pont környezetében veszi fel nagyobb valószínűséggel?" ---
+# Ahol a sűrűségfüggvény (d...) értéke nagyobb!
+f10 <- dgamma(10, shape = 5, rate = 0.5)
+f15 <- dgamma(15, shape = 5, rate = 0.5)
+# Szöveges válasz: Ahol a f-érték nagyobb, ott a valószínűsége nagyobb.
+
+# --- Kvantilisek ("Legfeljebb / legalább mennyi az értéke p valószínűséggel?") ---
+# Legfeljebb x értéket vesz fel 0.9 valószínűséggel:
+qchisq(0.9, df = 5)
+# Legalább x értéket vesz fel 0.9 valószínűséggel (felső farok!):
+qchisq(0.9, df = 5, lower.tail = FALSE)   # Ugyanaz mint: qchisq(1 - 0.9, df = 5)
 
 
-#1. (a) Rajzolja fel egy 5 szabadsági fokú 2 eloszlású v.v. s½ur½uségfüggvényét! 4p
-szf = 5
-curve(dchisq(x, df = szf), from = 0, to = 25, lwd = 2, col = "blue",
-      main = "khi-negyzet surusegfuggveny, 5 szabadsagi fok",
-      xlab = "x", ylab = "f(x)")
-abline(v = szf, col = "red", lty = 2)  
-#(b) Mennyi a valószín½usége, hogy egy 5 szabadsági fokú 2 eloszlású v.v. 10-nél kisebb értéket vesz
-#fel?3p
-pchisq(10,df = szf) # 0.9247 -> 92%
+# =====================================================================
+# 2. ADATBEOLVASÁS ÉS DESKRIPTÍV STATISZTIKA
+# =====================================================================
 
-getwd()
-setwd("C:/Users/raczn/OneDrive/Dokumentumok/matstat")
+# Magyar CSV beolvasása (pontosvessző elválasztó, vessző tizedesjegy):
+adat <- read.csv2("../zh_examples/20241109_zh_levelezo_R_adatfile.csv")
+
+# Adat ellenőrzése
+str(adat)
+head(adat)
+
+# Kvantilis / Decilis / Kvartilis (pl. felső decilis = 0.9 kvantilis)
+quantile(adat$vernyomas_s, probs = 0.9)
+
+# Legnagyobb / Legkisebb érték ÉS a hozzá tartozó teljes sor
+max_val <- max(adat$vernyomas_s)
+max_idx <- which.max(adat$vernyomas_s)
+adat[max_idx, ]    # Kiírja a teljes sort, ahova a maximum tartozik!
+
+# Csoportonkénti mutatók kiszámítása (tapply)
+tapply(adat$vernyomas_s, adat$nem, mean)
+tapply(adat$vernyomas_s, adat$nem, sd)
+
+# Új oszlop/változó képzése (pl. különbség/változás)
+valtozas <- adat$m1 - adat$m2
+sum(valtozas >= 2)   # Hány esetben volt a változás legalább 2?
+mean(valtozas >= 2)  # Milyen arányban?
+
+
+# =====================================================================
+# 3. HIPOTÉZISVIZSGÁLATOK (A "TEKINTHETŐ-E...?" KÉRDÉSEK)
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# A) NORMÁLIS ELOSZLÁSÚ-E AZ ADAT? (Illeszkedésvizsgálat)
+# ---------------------------------------------------------------------
+shapiro.test(adat$vernyomas_s)
+# Alternatíva: Kolmogorov-Smirnov próba normálisra
+ks.test(adat$vernyomas_s, "pnorm", mean(adat$vernyomas_s), sd(adat$vernyomas_s))
+# Döntés: p >= 0.05 -> Normalisnak tekinthető | p < 0.05 -> Nem normális
+
+# Hisztogram illesztett normális sűrűséggel (freq = FALSE kell!):
+hist(adat$vernyomas_s, freq = FALSE, col = "lightblue", main = "Hisztogram")
+curve(dnorm(x, mean = mean(adat$vernyomas_s), sd = sd(adat$vernyomas_s)), add = TRUE, col = "red", lwd = 2)
+
+# ---------------------------------------------------------------------
+# B) KÉT CSOPORT SZÓRÁSÁNAK EGYEZÉSE (2 minta)
+# ---------------------------------------------------------------------
+var.test(adat$vernyomas_s ~ adat$nem)
+# Döntés: p >= 0.05 -> A szórások azonosak (var.equal = TRUE)
+#         p < 0.05  -> A szórások eltérnek (var.equal = FALSE -> Welch-próba kell)
+
+# ---------------------------------------------------------------------
+# C) 3 VAGY TÖBB CSOPORT SZÓRÁSÁNAK EGYEZÉSE
+# ---------------------------------------------------------------------
+bartlett.test(tomeg ~ gyartosor, data = adat)
+
+# ---------------------------------------------------------------------
+# D) VÁRHATÓ ÉRTÉKEK EGYEZÉSE (Kétmintás t-próba)
+# ---------------------------------------------------------------------
+# Kétoldali: "Azonos-e a két csoport várható értéke?"
+t.test(vernyomas_s ~ nem, data = adat, var.equal = TRUE) # A var.test p-értékétől függően!
+
+# Egyoldali: "Szignifikánsan KISEBB-e az 1. csoporté, mint a 2.-é?"
+# FIGYELEM: az 'alternative' irány az első argumentumhoz igazodik!
+ferfi <- adat$vernyomas_s[adat$nem == 1]
+no    <- adat$vernyomas_s[adat$nem == 2]
+t.test(ferfi, no, alternative = "less", var.equal = TRUE)
+
+# ---------------------------------------------------------------------
+# E) 3 VAGY TÖBB CSOPORT VÁRHATÓ ÉRTÉKÉNEK EGYEZÉSE (ANOVA)
+# ---------------------------------------------------------------------
+fit <- aov(osszpontszam ~ factor(hanyadik_felvetel), data = adat)
+summary(fit)
+# p-érték a "Pr(>F)" oszlopban.
+
+# ---------------------------------------------------------------------
+# F) ELOSZLÁSOK EGYEZÉSE (Kétmintás Kolmogorov-Smirnov próba)
+# ---------------------------------------------------------------------
+# "Azonos eloszlásúnak tekinthető-e a két csoport?" (NEM azonos a várható értékkel!)
+ks.test(ferfi, no)
+
+# ---------------------------------------------------------------------
+# G) FÜGGETLENSÉGVIZSGÁLAT (Két folytonos vs. Két diszkrét/kategóriás)
+# ---------------------------------------------------------------------
+# 1. Két folytonos változó függetlensége (Pearson korreláció):
+cor.test(adat$vernyomas_s, adat$vernyomas_d)
+
+# 2. Két sorrendi/rang változó korrelációja (Spearman rangkorreláció):
+cor.test(adat$elm_pont, adat$gyak_pont, method = "spearman")
+
+# 3. Két kategóriás/diszkrét változó függetlensége (Khi-négyzet próba):
+kt <- table(adat$nem, adat$vercukor)
+chisq.test(kt, correct = FALSE) # correct = FALSE adja a tanult képlet szerinti értéket 2x2 tablánál
+
+# ---------------------------------------------------------------------
+# H) ARÁNYOK OSSZEHASSONLÍTÁSA (Egyminás és Kétmintás)
+# ---------------------------------------------------------------------
+# 1. Egymintás: "Elfogadjuk-e, hogy a sikeresek aránya p = 0.8?" (k = sikeresek száma, n = összes)
+binom.test(k = 111, n = 150, p = 0.8, alternative = "less")
+
+# 2. Kétmintás: "Azonos arányban jelentkezett-e a mellékhatás a két csoportban?"
+prop.test(x = c(13, 17), n = c(42, 48))
+
+# 3. Diszkrét illeszkedésvizsgálat: "Egyenletes-e az eloszlás a kategóriák között?"
+gyakorisagok <- table(adat$raktar)
+chisq.test(gyakorisagok)
+
+
+# =====================================================================
+# 4. KONFIDENCIAINTERVALLUMOK (CI)
+# =====================================================================
+
+# Várható értékre (CI):
+t.test(adat$vernyomas_s, conf.level = 0.90)$conf.int
+
+# Egyoldali konfidenciaintervallum ("Legalább mennyi a várható érték 0.9 valószínűséggel?"):
+t.test(adat$vernyomas_s, alternative = "greater", conf.level = 0.90)$conf.int[1]
+
+# Szórásra (CI):
+ci.szoras(adat$vernyomas_s, conf.level = 0.90)
+
+# Korrelációs együtthatóra (CI):
+cor.test(adat$vernyomas_s, adat$vernyomas_d, conf.level = 0.90)$conf.int
+
+# Arányra (CI):
+binom.test(k = 64, n = 365, conf.level = 0.90)$conf.int
+
+
+# =====================================================================
+# 5. SZIMULÁCIÓS FELADATOK
+# =====================================================================
+
+# Típus 1: Valószínűség becslése szimulációval (pl. P(1 < F(5,10) < 3))
+set.seed(2026)
+minta <- rf(100000, df1 = 5, df2 = 10)
+mean(minta > 1 & minta < 3)
+
+# Becslés normális eloszlású adatok generálásával
+mu1 <- 100; sigma1 <- 5   # Termelt anyag
+mu2 <- 90;  sigma2 <- 6   # Elhasznált anyag
+
+# 3. Minták generálása a normális eloszlásokból
+X1 <- rnorm(N, mean = mu1, sd = sigma1)
+X2 <- rnorm(N, mean = mu2, sd = sigma2)
+
+# 4. Becslés a P(X1 < X2) valószínűségre
+sikeres_esetek <- X1 < X2
+p_becsles <- mean(sikeres_esetek)
+
+
+# Típus 2: Intervallum becslése nehezebb transzformációkra (pl. X^2 0.99-es intervalluma)
+set.seed(2026)
+X <- rlogis(1000000, location = 0, scale = 1)
+X2 <- X^2
+quantile(X2, probs = c(0.005, 0.995)) # Szimmetrikus 99%-os intervallum
+
+# Típus 3: Másodfajú hiba (beta) szimulációval
+set.seed(2026)
+m0 <- 100; m_igazi <- 101; sigma <- 10; nn <- 500; alpha <- 0.1
+kritikus <- qnorm(1 - alpha/2)
+atlagok <- rnorm(100000, mean = m_igazi, sd = sigma / sqrt(nn))
+u_ertekek <- (atlagok - m0) / (sigma / sqrt(nn))
+beta_szim <- mean(abs(u_ertekek) <= kritikus) # Másodfajú hiba valószínűsége
+
+#
+# Szemleltetes: megfigyelt vs. vart
+barplot(rbind(as.numeric(gyak), rep(sum(gyak)/6, 6)), beside = TRUE,
+        names.arg = names(gyak), col = c("steelblue", "grey"),
+        legend.text = c("megfigyelt", "vart (egyenletes)"),
+        main = "Raktarankenti darabszamok", xlab = "raktar")
+
 adat = read.csv2("adatfile_2026_10_17.csv")
 str(adat)
-alvas = adat$ido
-k = adat$kave
-tag = adat$tagozat
-pass = adat$siker
-sikeres_nappali <- adat[adat[, 2] == "N" & adat[, 3] == 1, ]
-sikeres_lev <- adat[adat[, 2] == "N" & adat[, 3] == 1, ]
-range(alvas)
-alvas_terjedelem = max(alvas) - min(alvas)
-alvas_terjedelem
-#VALASZ: legkisebb és legnagyobb alvásidő közti különbség 4.8 óra
-
+ido = adat$ido
+tagozat = adat$tagozat
+siker = adat$siker
+kave = adat$kave
+#(a) Mekkora legnagyobb és a legkisebb alvásid½o közti eltérés? 5p
+kulonb = max(ido) - min(ido)
+kulonb
+#Válasz: az alvás terjedelme 4.8 óra
 #(b) Rajzolja fel az alvásid½o tapasztalati eloszlásfüggvényét együtt
 #egy olyan normális eloszlásfüggvénnyel, amelynek várható értéke
 #az alvásid½o becsült várható értéke, és a szórása az alvásid½o
-#becsült szórása.5p
-# 2. Tapasztalati eloszlásfüggvény (ECDF) ábrázolása
-plot(ecdf(alvas), 
-     main = "Tapasztalati és Normális Eloszlásfüggvény", 
-     xlab = "Alvásidő (óra)", 
-     ylab = "F(x)")
+#becsült szórása.5p 
 
-# 3. Normális eloszlásfüggvény ráillesztése a becsült átlaggal és szórással
-curve(pnorm(x, mean = mean(alvas), sd = sd(alvas)), 
-      add = TRUE, 
-      col = "red", 
-      lwd = 2)
+# 1. Tapasztalati eloszlásfüggvény objektum létrehozása és kirajzolása
+fn_tapasztalati <- ecdf(ido)
 
-# 4. Jelmagyarázat hozzáadása (opcionális, de szép)
+plot(fn_tapasztalati, xlim = c(0, 10), 
+     col = "blue", lwd = 2, ylab = "F(x)", 
+     main = "Eloszlásfüggvények összehasonlítása")
+
+# 2. Elméleti normális eloszlásfüggvény ráillesztése (add = TRUE fontos!)
+curve(pnorm(x, mean = mean(ido), sd = sd(ido)), 
+      from = 0, to = 10, 
+      col = "red", lwd = 2, lty = 2, 
+      add = TRUE)
+
+# 3. Jelmagyarázat (Legend) hozzáadása
 legend("topleft", 
-       legend = c("Tapasztalati (ECDF)", "Elméleti Normális (CDF)"), 
-       col = c("black", "red"), 
-       lty = 1, 
-       lwd = c(1, 2))
+       legend = c("Tapasztalati", "Normális"),
+       col = c("blue", "red"), 
+       lty = c(1, 2), 
+       lwd = 2)
+
 #(c) Tekinthejük-e normális eloszlásúnak az alvásid½ot a becsült
 #várható érték és a becsült szórás paraméterekkel? 5p
-shapiro.test(alvas)
-# Kolmogorov-Smirnov teszt
-ks.test(alvas, "pnorm", mean = mean(alvas), sd = sd(alvas))
-#        Shapiro-Wilk normality test
-
-#data:  alvas
-#W = 0.99064, p-value = 0.8846
-
-#> ks.test(alvas, "pnorm", mean = mean(alvas), sd = sd(alvas))
-
-#       Asymptotic one-sample Kolmogorov-Smirnov test
-
-#data:  alvas
+ks.test(ido, "pnorm", mean(ido), sd(ido))
+#data:  ido
 #D = 0.078598, p-value = 0.7802
 #alternative hypothesis: two-sided
-
-#Warning message:
-#In ks.test.default(alvas, "pnorm", mean = mean(alvas), sd = sd(alvas)) :
-#  ties should not be present for the one-sample Kolmogorov-Smirnov test
-# H0 -> normális eloszlásúnak tekinthetjük az alvás vv értékeket
-# p 0.88 és 0.78 > 0.05 -> nem utasítjuk el H0-t, mindkét teszt alapján normális eloszlásúnak
-#tekinthetőek
-
+#Válasz: p value 0.7802 > 0.05 -> nem vetjük el H0-t normális eloszlásúnak
+#tekinthető
 #(d) Milyen arányban lett sikeres a vizsga a nappalis illetve a lev-
 #elez½os hallgatók körében? 5p
-# Készítünk egy kontingenciatáblázatot (Képzés vs. Siker)
-tablazat <- table(adat[, 2], adat[, 3])
+# 1. Hozzunk létre egy kereszttáblát (sorok: tagozat, oszlopok: vizsga)
+tablazat <- table(tagozat, siker)
 
-# Kétmintás arányteszt lefuttatása
-prop.test(tablazat)
-chisq.test(table(adat[, 2], adat[, 3])))
-# p =1 nem utasítjuk el H0-t azonosnak tekinthető a két arány 33% nappalis és 35 levelezős
+# 2. Számoljunk soronkénti arányokat (margin = 1 -> soronként adja meg a 100%-ot)
+prop.table(tablazat, margin = 1)
+#Nappali 65% sikeres, levelező 66% -> azonosnak tekinthetőek
+
 #(e) Becsülje meg a kávéadag és az alvásid½o korrerációs együt-
 #thatóját! Hogyan értelmezi a kapott szám el½ojelét? 5p
-cor.test(k, alvas, method = "pearson")
-data:  k and alvas
-#t = -2.9698, df = 68, p-value = 0.004114
+cor.test(kave, ido)
+#2.9698, df = 68, p-value = 0.004114
 #alternative hypothesis: true correlation is not equal to 0
 #95 percent confidence interval:
 # -0.5314984 -0.1128530
 #sample estimates:
 #       cor 
 #-0.3388418
-
-#r = -0.338 gyenge negatív kapcsolat több alvás kevesebb kávé
-#Értelmezés: Mivel a p-érték lényegesen kisebb, mint a szokásos 0,05-ös 
-#szignifikanciaszint ($p = 0{,}0041 < 0{,}05$), a nullhipotézist (mely szerint nincs kapcsolat a két változó között) elutasítjuk.
-#Következtetés: Statisztikailag szignifikáns,
-#lineáris kapcsolat van a megivott kávéadagok száma és az alvásidő között.
+#Válasz korreláció értéke -0.3388 ellentétes irányú gyenge 
+# lineáris kapcsolat
+# látható a kávéadag és az alvásidő között
 #(f) Független-e tárgy teljesítése és a tagozat egymástól? 5p
-chisq.test(table(pass, tag))
-#        Pearson's Chi-squared test with Yates'
-#        continuity correction
+kt <- table(adat$siker, adat$tagozat)
+chisq.test(kt, correct = FALSE)
 
-#data:  table(pass, tag)
-#X-squared = 5.3686e-31, df = 1, p-value = 1
-#VÁLASZ:-. H0 független a tárgy teljesítés és a tagozat 
-# p = 1 > 0.05 nem utasítjuk el H0-t, függetlennek tekinthető a tagozat és a teljesítés
-(g) Tekinhetjük-e a kávéfogyasztás várható értékét azonosnak a
-levelez½os és a nappali tagozatos hallgatók körében? 5p
+#        Pearson's Chi-squared test
 
+#data:  kt
+#X-squared = 0.021135, df = 1, p-value = 0.8844
+#p value 0.884 > 0.05 Nem utasítjuk el H0-t, függetlennek tekinthető
+# a tagozat és a tárgy teljesítése
+#Tekinhetjük-e a kávéfogyasztás várható értékét azonosnak a
+#levelez½os és a nappali tagozatos hallgatók körében? 5p
+t.test(kave ~ tagozat, data = adat, var.equal = TRUE)
+#data:  kave by tagozat
+#t = 3.2665, df = 68, p-value = 0.001708
+#alternative hypothesis: true difference in means between group L and group N is not equal to 0
+#95 percent confidence interval:
+# 0.3177668 1.3155665
+#sample estimates:
+#mean in group L mean in group N 
+#       1.566667        0.750000 
+#Válasz: p value 0.0017 < 0.05 -> nem tekinthető azonosnak a két
+#tagozat között a kávéfogyasztás nappali átlag 0.75 levelező átlag
+#1.566
 #(h) Legalábbmennyi az alvásid½o várható értéke 0.9 valószín½uséggel.
 #5p
-qnorm(0.9, sd(alvas))
-#VALASZ: 2.288
+t.test(ido, alternative = "greater", conf.level = 0.90)$conf.int[1]
+#VÁLASZ: Legalább 7.3328 az alvásidő várható értéke 0.9 valószínűséggel
 #Legyen 1 egy vállalat által egy nap alatt termelt anyagmeny-
 #iség, normális eloszlású valószín½uségi változó 100 egység várható
 #értékkel és 5 egység szórással, 2 az elhasznált anyagmennyiség ,
 #amely szintén normális eloszlású v.v. 90 egység várható értékkel
 #és 6 egység szórással.
-#1(a) Véletlen szimulációt használva adjon becslést arra valószín½usé-
-#gre, hogy a vállalat egy nap alatt kevesebb anyagot gyárt,
-#mint amennyit elhasznál! 5p
-#(b) Adjon 0.9 szint½u konfdenciaintervallumot a fenti valószín½usé-
-#gre! 5p
-# A reprodukálhatóság kedvéért beállítunk egy kezdőértéket
-set.seed(123)
+# 1. Beállítások
+set.seed(42)          # A reprodukálhatóság érdekében
+N <- 1000000          # Szimulációk száma (pl. 1 millió nap)
 
-# 1. Szimulációs elemszám megadása
-N <- 100000
+# 2. Adatok megadása
+mu1 <- 100; sigma1 <- 5   # Termelt anyag
+mu2 <- 90;  sigma2 <- 6   # Elhasznált anyag
 
-# 2. Véletlen minták generálása
-X1 <- rnorm(N, mean = 100, sd = 5)
-X2 <- rnorm(N, mean = 90, sd = 6)
+# 3. Minták generálása a normális eloszlásokból
+X1 <- rnorm(N, mean = mu1, sd = sigma1)
+X2 <- rnorm(N, mean = mu2, sd = sigma2)
 
-# 3. (a) A keresett feltétel szimulálása és a valószínűség becslése
-sikeres <- sum(X1 < X2)
-p_becsles <- mean(X1 < X2)
-p_becsles
+# 4. Becslés a P(X1 < X2) valószínűségre
+sikeres_esetek <- X1 < X2
+p_becsles <- mean(sikeres_esetek)
 
-# 4. (b) 0.9 (90%-os) szintű konfidenciaintervallum számítása
-teszt <- prop.test(sikeres, N, conf.level = 0.90)
-teszt$conf.int
+# Eredmény kiíratása
+cat("Becsült valószínűség (szimulációval):", round(p_becsles, 4), "\n")
+#0.1 a becsült valószínűség
