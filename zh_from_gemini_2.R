@@ -262,7 +262,14 @@ barplot(rbind(as.numeric(gyak), rep(sum(gyak)/length(gyak), length(gyak))),
 
 #1. R GYAKORLATI ZÁRTHELYI (MINTA – GYÁRTÁSI ADATOK)
 #Olvassa be a gyartasi_adatok_2026.csv fájlt R-ben 
-(#read.csv2("gyartasi_adatok_2026.csv", dec = "."))!
+#read.csv2("gyartasi_adatok_2026.csv", dec = "."))!
+adat = read.csv2("gyartasi_adatok_2026.csv", dec = ".")
+str(adat)
+elteres = adat$meret_elteres
+sor = adat$sor
+leallasok = adat$leallasok
+hibas = adat$hibas
+sok = adat$sok_leallas
 #Az adatsor oszlopai:meret_elteres: A legyártott alkatrész méretbeli eltérése 
 #a névleges értéktől ($\mu m$).sor: A gyártósor azonosítója (1 = A sor, 2 = B sor).
 #leallások: A műszak alatti micro-leállások száma.hibas: Selejt kategória 
@@ -271,14 +278,55 @@ barplot(rbind(as.numeric(gyak), rep(sum(gyak)/length(gyak), length(gyak))),
 Feladat (Deskriptív statisztika és Eloszlások) (15 pont)
 (a) Számítsa ki a méreteltérések terjedelmét,
  valamint adja meg a legkisebb méreteltérést produkáló alkatrész teljes adatsorát! (4p)
+terjedelem = max(elteres) - min(elteres)
+minimum = min(elteres)
+terjedelem
+str(adat[elteres == minimum])
+minimum
+#VÁLASZ az eltérések terjedelme
 (b) Rajzolja fel a méreteltérések tapasztalati eloszlásfüggvényét,
  #és illessze rá az azonos átlagú és szórású elméleti normális eloszlásfüggvényt egy 
 #közös ábrán! (6p)
+fn_tapasztalati <- ecdf(elteres)
+plot(fn_tapasztalati, col = "blue", lwd = 2, ylab = "F(x)", main = "Eloszlásfüggvények összehasonlítása")
+curve(pnorm(x, mean = mean(elteres), sd = sd(elteres)), 
+      from = min(elteres), to = max(elteres), 
+      col = "red", lwd = 2, lty = 2, add = TRUE)
+legend("topleft", legend = c("Tapasztalati", "Normális"), col = c("blue", "red"), lty = 1:2, lwd = 2)
+
+
 #(c) Tekinthetjük-e normális eloszlásúnak a méreteltéréseket 
 #$\alpha = 0.05$ szignifikanciaszinten?(5p)
+shapiro.test(elteres)
+#data:  elteres
+#W = 0.95178, p-value = 0.0873
+#VÁLASZ p 0.0873 > 0.05 Nem utasítjuk el H0-t normális eloszlásúnak tekinthető
 #2. Feladat (Hipotézisvizsgálatok és Összefüggések) (35 pont)
 #(a) Tekinthetjük-e azonosnak az 1-es és 2-es gyártósor méreteltéréseinek várható értékét,
  #vagy az adatok alapján az 1-es sor méreteltérése szignifikánsan nagyobb? (6p)
+t.test(elteres ~ sor, data = adat)
+data:  elteres by sor
+t = 0.88591, df = 35.447, p-value = 0.3816
+alternative hypothesis: true difference in means between group 1 and group 2 is not equal to 0
+#95 percent confidence interval:
+#-4.459428 11.370425
+#sample estimates:
+#mean in group 1 mean in group 2 
+#58.82609        55.37059 
+#VÁLASZ: p value 0.3816 > 0.05 azonosnak tekinthető a két gyártósor méreteltérésének
+#várható értéke
+sor1 <- elteres[sor == 1]
+sor2 <- elteres[sor == 2]
+t.test(sor1, sor2, alternative = "greater") # "greater": csop1 > csop2?
+
+t = 0.88591, df = 35.447, p-value = 0.1908
+alternative hypothesis: true difference in means is greater than 0
+95 percent confidence interval:
+ -3.132469       Inf
+sample estimates:
+mean of x mean of y 
+ 58.82609  55.37059 
+
 #(b) Adjon $0.95$ (95%-os) megbízhatóságú egyoldali konfidenciaintervallumot
  #az 1-es gyártósor várható méreteltérésére! (5p)
 #(c) Tekinthetjük-e azonos eloszlásúnak a leállások számát az 1-es és 2-es gyártósor esetén? (6p)
