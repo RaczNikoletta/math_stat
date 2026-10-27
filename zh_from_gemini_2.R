@@ -165,7 +165,7 @@ aggregate(pontszam ~ csoport, data = adat, FUN = mean) # Csoportátlagok
 # ---------------------------------------------------------------------
 # F) ELOSZLÁSOK EGYEZÉSE (Kétmintás Kolmogorov-Smirnov / Wilcoxon próba)
 # ---------------------------------------------------------------------
-# "Azonos eloszlásúnak tekinthető-e a két csoport?" (NEM azonos a várható értékkel!)
+# "Azonos eloszlásúnak tekinthető-e a két csoport?" 
 ks.test(csop1, csop2)
 wilcox.test(csop1, csop2)
 
@@ -279,10 +279,10 @@ Feladat (Deskriptív statisztika és Eloszlások) (15 pont)
 (a) Számítsa ki a méreteltérések terjedelmét,
  valamint adja meg a legkisebb méreteltérést produkáló alkatrész teljes adatsorát! (4p)
 terjedelem = max(elteres) - min(elteres)
-minimum = min(elteres)
+min_idx <- which.min(eltres)
 terjedelem
-str(adat[elteres == minimum])
 minimum
+adat[min_idx, ] 
 #VÁLASZ az eltérések terjedelme
 (b) Rajzolja fel a méreteltérések tapasztalati eloszlásfüggvényét,
  #és illessze rá az azonos átlagú és szórású elméleti normális eloszlásfüggvényt egy 
@@ -329,7 +329,9 @@ mean of x mean of y
 
 #(b) Adjon $0.95$ (95%-os) megbízhatóságú egyoldali konfidenciaintervallumot
  #az 1-es gyártósor várható méreteltérésére! (5p)
+t.test(elteres, alternative = "greater", conf.level = 0.95)$conf.int[1]
 #(c) Tekinthetjük-e azonos eloszlásúnak a leállások számát az 1-es és 2-es gyártósor esetén? (6p)
+ks.test(leallasok[sor == 1], leallasok[sor == 2])
 #(d) Tekinthető-e függetlennek a leállások száma és a méreteltérés? (6p)
 #(e) Független-e a selejt kategória (4. oszlop) attól, hogy sok leállás volt-e a műszakban 
 #(5. oszlop)? (6p)
