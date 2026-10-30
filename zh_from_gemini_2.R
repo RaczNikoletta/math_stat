@@ -69,6 +69,20 @@ curve(pnorm(x, mean = mean(adat$pontszam), sd = sd(adat$pontszam)),
       col = "red", lwd = 2, lty = 2, add = TRUE)
 legend("topleft", legend = c("Tapasztalati", "Normális"), col = c("blue", "red"), lty = 1:2, lwd = 2)
 
+# --- chi négyzet és f eloszlás összehasonlítása
+curve(dchisq(x, df = 10), from = 0, to = 25, ylim = c(0, 0.75),
+      col = "blue", lwd = 2,
+      main = "Chi-négyzet (10) és F(4,15) eloszlások sűrűségfüggvényei",
+      xlab = "x", ylab = "Sűrűség f(x)")
+
+# 2. Rátesszük az F-eloszlást:
+curve(df(x, df1 = 4, df2 = 15), from = 0, to = 25, 
+      col = "red", lwd = 2, add = TRUE)
+
+# 3. Jelmagyarázat:
+legend("topright", legend = c("Chi2(10)", "F(4,15)"), 
+       col = c("blue", "red"), lwd = 2)
+
 
 # --- "Melyik pont környezetében veszi fel nagyobb valószínűséggel?" ---
 # Ahol a sűrűségfüggvény (d...) értéke nagyobb!
@@ -154,6 +168,9 @@ t.test(pontszam ~ csoport, data = adat)
 csop1 <- adat$pontszam[adat$csoport == 1]
 csop2 <- adat$pontszam[adat$csoport == 2]
 t.test(csop1, csop2, alternative = "greater") # "greater": csop1 > csop2?
+
+t.test(gpu_hours ~ type, data = adat, alternative = "greater", conf.level = 0.95)
+
 
 # ---------------------------------------------------------------------
 # E) 3 VAGY TÖBB CSOPORT VÁRHATÓ ÉRTÉKÉNEK EGYEZÉSE (ANOVA)
@@ -249,6 +266,18 @@ beta_szim <- mean(abs(u_ertekek) <= kritikus) # Másodfajú hiba valószínűsé
 # =====================================================================
 # 6. EXTRÁK ÉS SZEMLÉLTETÉSEK
 # =====================================================================
+# Két változó együttes ábrázolása:
+# 2. Ábrázolás: plot(x = adat$gpu_hours, y = adat$accuracy)
+plot(adat$gpu_hours, adat$accuracy,
+     main = "Pontosság a GPU-órák függvényében", # Cím
+     xlab = "GPU-órák száma (gpu_hours)",       # X tengely felirata
+     ylab = "Pontosság % (accuracy)",           # Y tengely felirata
+     pch = 19,                                  # Tömör körök a pontoknak
+     col = "blue")                              # Pontok színe
+
+# Opcionális: Ráhúzhatsz egy lineáris regressziós trendvonalat is:
+abline(lm(accuracy ~ gpu_hours, data = adat), col = "red", lwd = 2)
+
 
 # Szemléltetés: Megfigyelt vs. Várt gyakoriságok
 gyak <- table(adat$sok_hianyzas)
@@ -259,87 +288,155 @@ barplot(rbind(as.numeric(gyak), rep(sum(gyak)/length(gyak), length(gyak))),
         main = "Gyakoriságok összehasonlítása", xlab = "Kategóriák")
 # =====================================================================
 
+getwd()
+setwd("C:/Users/raczn/OneDrive/Dokumentumok/matstat")
+A fájl oszlopai a következő adatokat tartalmazzák:
+1. oszlop (type): A modell típusa (
+$1 = \text{LLM/Nyelvi modell}$,
+$2 = \text{Kép generáló/Vision modell}$)
+2. oszlop (accuracy): A modell pontossága a tesztkészleten 
+(százalékban, 0–100)3. oszlop (gpu_hours): A tanításhoz felhasznált GPU-órák 
+száma
+4. oszlop (deploy_success): A modell sikeresen átment-e a produkciós teszten 
+($1 = \text{igen}$, $0 = \text{nem}$)
+Válaszoljon az alábbi kérdésekre! 
+Minden feladatnál tüntesse fel a használt R parancsot, az R kimenetét,
+ valamint a statisztikai következtetést!   
 
-#1. R GYAKORLATI ZÁRTHELYI (MINTA – GYÁRTÁSI ADATOK)
-#Olvassa be a gyartasi_adatok_2026.csv fájlt R-ben 
-#read.csv2("gyartasi_adatok_2026.csv", dec = "."))!
-adat = read.csv2("gyartasi_adatok_2026.csv", dec = ".")
-str(adat)
-elteres = adat$meret_elteres
-sor = adat$sor
-leallasok = adat$leallasok
-hibas = adat$hibas
-sok = adat$sok_leallas
-#Az adatsor oszlopai:meret_elteres: A legyártott alkatrész méretbeli eltérése 
-#a névleges értéktől ($\mu m$).sor: A gyártósor azonosítója (1 = A sor, 2 = B sor).
-#leallások: A műszak alatti micro-leállások száma.hibas: Selejt kategória 
-#(0 = megfelelő, 1 = selejt / elfogadhatatlan eltérés).sok_leallas: Leállások kategóriája 
-#("sok" = 2-nél több leállás, "nem sok" = legfeljebb 2).1. 
-Feladat (Deskriptív statisztika és Eloszlások) (15 pont)
-(a) Számítsa ki a méreteltérések terjedelmét,
- valamint adja meg a legkisebb méreteltérést produkáló alkatrész teljes adatsorát! (4p)
-terjedelem = max(elteres) - min(elteres)
-min_idx <- which.min(eltres)
-terjedelem
-minimum
-adat[min_idx, ] 
-#VÁLASZ az eltérések terjedelme
-(b) Rajzolja fel a méreteltérések tapasztalati eloszlásfüggvényét,
- #és illessze rá az azonos átlagú és szórású elméleti normális eloszlásfüggvényt egy 
-#közös ábrán! (6p)
-fn_tapasztalati <- ecdf(elteres)
+adat = read.csv2("ai_models.csv", dec = ".")
+type = adat$type
+acc = adat$acc
+hours = adat$gpu_hours
+succ = adat$deploy_success
+
+#(a) Mekkora a legkisebb és a legnagyobb GPU-óra felhasználás közötti eltérés
+#terjedelem)? (5p)
+terj = max(hours) - min(hours)
+terj
+#VÁLASZ: 159.1 óra a legnagyobb és legkisebb gpu óra felhasználás közötti eltérés
+
+#(b) Ábrázolja a modellek pontosságát (accuracy)
+#a felhasznált GPU-órák (gpu_hours) függvényében! (5p)
+plot(x = hours, y = acc)
+plot(adat$gpu_hours, acc,
+     main = "Pontosság a GPU-órák függvényében", # Cím
+     xlab = "GPU-órák száma (gpu_hours)",       # X tengely felirata
+     ylab = "Pontosság % (accuracy)",           # Y tengely felirata
+     pch = 19,                                  # Tömör körök a pontoknak
+     col = "blue")                              # Pontok színe
+# Opcionális: Ráhúzhatsz egy lineáris regressziós trendvonalat is:
+abline(lm(accuracy ~ gpu_hours, data = adat), col = "red", lwd = 2)
+
+#(c) Tekinthetjük-e normális eloszlásúnak a modellek pontosságát?
+#Végezze el a megfelelő illeszkedésvizsgálatot! (5p)
+shapiro.test(acc)
+#data:  acc
+#W = 0.98595, p-value = 0.5318
+#VÁLASZ: p value 0.5318 > 0.05 nem utasítjuk el H0-t, normálisnak tekinthető 
+#d) Becsülje meg a GPU-órák száma és a modell pontossága közötti 
+#korrelációs együtthatót! 
+#Hogyan értelmezi a kapott szám előjelét és nagyságát? (5p)
+cor.test(hours,acc)
+#Pearson's product-moment correlation
+#data:  hours and acc
+#t = 4.9309, df = 78, p-value = 4.517e-06
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+#0.2998837 0.6387794
+#sample estimates:
+#     cor 
+#0.4874807
+#VÁLASZ: r = 0.48748 - közepes, pozitív lineáris kapcsolat van
+#pozitív -> az egyik változó növekedésével a másik is nő
+#e) Adjon $0.95$ ($95\%$-os) 
+#szintű konfidenciaintervallumot a nyelvi modellek (LLM, type=1) 
+#átlagos pontosságára (várható értékére)! (5p) 
+type1 = adat$acc[type == 1]
+t.test(type1, conf.level = 0.95)$conf.int
+#[1] 79.78058 83.36442
+#VÁLASZ: az LLM pontosságának várható értéke 79.78058 és 83.36442
+#közé fog esni 95%-kal
+#f) Tekinthetjük-e azonosnak az LLM és a
+#Vision modellek átlagos tanítási időtartamát (GPU-órák várható értékét),
+#vagy a nyelvi modellek tanítása szignifikánsan több 
+#időt vesz igénybe $0.05$-ös szignifikanciaszinten? (5p
+t.test(gpu_hours ~ type, data = adat, alternative = "greater", conf.level = 0.95)
+#Welch Two Sample t-test
+#data:  gpu_hours by type
+#t = 10.807, df = 67.04, p-value < 2.2e-16
+#alternative hypothesis: true difference in means between group 1 and group 2 is greater than 0
+#95 percent confidence interval:
+#45.99534      Inf
+#sample estimates:
+#mean in group 1 mean in group 2 
+#       143.875          89.485 
+#VÁLASZ: p value < 0.05 Szöveges válasz: 
+#A nyelvi modellek (LLM) tanítási ideje szignifikánsan több
+# GPU-órát vesz igénybe
+
+#mint a Vision modelleké $0,05$-ös szignifikanciaszinten.
+
+#h) Független-e a modell sikeres produkciós bevezetése (deploy_success)
+# a modell típusától (type)?
+#Végezzen függetlenségvizsgálatot $0.05$-ös szignifikanciaszinten! (5p) 
+kt <- table(succ, type)
+chisq.test(kt, correct = FALSE)
+        Pearson's Chi-squared test
+#data:  kt
+#X-squared = 1.8182, df = 1, p-value = 0.1775
+#p 0.1775 > 0.05 Nem utasítjuk el H0-t, függetlennek tekinthetőek
+
+#(i) Tekinthető-e függetlennek a felhasznált GPU-órák száma 
+#és a modell pontossága $0.10$-es szignifikanciaszinten? (10p) 
+cor.test(hours,acc)
+#Pearson's product-moment correlation
+#data:  hours and acc
+#t = 4.9309, df = 78, p-value = 4.517e-06
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+#0.2998837 0.6387794
+#sample estimates:
+#      cor 
+#0.4874807 
+#VÁLASZ: p value nagyon kicsi < 0.10 elutasítjuk H0-t, nem független a két
+#változó egymástól r = 0.487 közepesen erős pozitív lineáris kapcsolat
+#(j) Rajzolja fel a GPU-órák tapasztalati eloszlásfüggvényét 
+#együtt egy olyan normális eloszlásfüggvénnyel, 
+#amelynek paramétereit (várható érték és szórás) az adatokból becsülte! (10p)
+fn_tapasztalati <- ecdf(hours)
 plot(fn_tapasztalati, col = "blue", lwd = 2, ylab = "F(x)", main = "Eloszlásfüggvények összehasonlítása")
-curve(pnorm(x, mean = mean(elteres), sd = sd(elteres)), 
-      from = min(elteres), to = max(elteres), 
+curve(pnorm(x, mean = mean(hours), sd = sd(hours)), 
+      from = min(hours), to = max(hours), 
       col = "red", lwd = 2, lty = 2, add = TRUE)
 legend("topleft", legend = c("Tapasztalati", "Normális"), col = c("blue", "red"), lty = 1:2, lwd = 2)
 
+#a) Rajzolja fel közös koordinátarendszerbe egy $10$ 
+#szabadsági fokú $\chi^2$-eloszlású és egy $(4, 15)$ szabadsági
+#fokú $F$-eloszlású valószínűségi változó sűrűségfüggvényét! (8p)   
+# 1. Rajzoljuk ki a Chi-négyzet eloszlást úgy, hogy az y-tengely 0-tól 0.75-ig terjedjen:
+curve(dchisq(x, df = 10), from = 0, to = 25, ylim = c(0, 0.75),
+      col = "blue", lwd = 2,
+      main = "Chi-négyzet (10) és F(4,15) eloszlások sűrűségfüggvényei",
+      xlab = "x", ylab = "Sűrűség f(x)")
 
-#(c) Tekinthetjük-e normális eloszlásúnak a méreteltéréseket 
-#$\alpha = 0.05$ szignifikanciaszinten?(5p)
-shapiro.test(elteres)
-#data:  elteres
-#W = 0.95178, p-value = 0.0873
-#VÁLASZ p 0.0873 > 0.05 Nem utasítjuk el H0-t normális eloszlásúnak tekinthető
-#2. Feladat (Hipotézisvizsgálatok és Összefüggések) (35 pont)
-#(a) Tekinthetjük-e azonosnak az 1-es és 2-es gyártósor méreteltéréseinek várható értékét,
- #vagy az adatok alapján az 1-es sor méreteltérése szignifikánsan nagyobb? (6p)
-t.test(elteres ~ sor, data = adat)
-data:  elteres by sor
-t = 0.88591, df = 35.447, p-value = 0.3816
-alternative hypothesis: true difference in means between group 1 and group 2 is not equal to 0
-#95 percent confidence interval:
-#-4.459428 11.370425
-#sample estimates:
-#mean in group 1 mean in group 2 
-#58.82609        55.37059 
-#VÁLASZ: p value 0.3816 > 0.05 azonosnak tekinthető a két gyártósor méreteltérésének
-#várható értéke
-sor1 <- elteres[sor == 1]
-sor2 <- elteres[sor == 2]
-t.test(sor1, sor2, alternative = "greater") # "greater": csop1 > csop2?
+# 2. Rátesszük az F-eloszlást:
+curve(df(x, df1 = 4, df2 = 15), from = 0, to = 25, 
+      col = "red", lwd = 2, add = TRUE)
 
-t = 0.88591, df = 35.447, p-value = 0.1908
-alternative hypothesis: true difference in means is greater than 0
-95 percent confidence interval:
- -3.132469       Inf
-sample estimates:
-mean of x mean of y 
- 58.82609  55.37059 
+# 3. Jelmagyarázat:
+legend("topright", legend = c("Chi2(10)", "F(4,15)"), 
+       col = c("blue", "red"), lwd = 2)
 
-#(b) Adjon $0.95$ (95%-os) megbízhatóságú egyoldali konfidenciaintervallumot
- #az 1-es gyártósor várható méreteltérésére! (5p)
-t.test(elteres, alternative = "greater", conf.level = 0.95)$conf.int[1]
-#(c) Tekinthetjük-e azonos eloszlásúnak a leállások számát az 1-es és 2-es gyártósor esetén? (6p)
-ks.test(leallasok[sor == 1], leallasok[sor == 2])
-#(d) Tekinthető-e függetlennek a leállások száma és a méreteltérés? (6p)
-#(e) Független-e a selejt kategória (4. oszlop) attól, hogy sok leállás volt-e a műszakban 
-#(5. oszlop)? (6p)
-#(f) Rajzolja fel a leállások számának hisztogramját! (6p)
-#3. Feladat(10 pont)Tételezzük fel, hogy két független gép által gyártott alkatrész
- átmérője normális eloszlást követ:sim N(\mu_2 = 100.0, \sigma_2 = 1.2)$
-(a) Becsülje meg véletlen szimuláció segítségével ($N = 100\ 000$ minta generálásával),
- hogy mekkora a valószínűsége annak, hogy a második gép terméke nagyobb átmérőjű,
- mint az elsőé ($P(X_1 < X_2)$)! (6p)
-(b) Adjon 95%-os konfidenciaintervallumot a szimulációval becsült valószínűségre 
-a b (4p)📝   
+#(b) Minek nagyobb a valószínűsége: annak, hogy egy $10$ 
+#szabadsági fokú $\chi^2$-eloszlású valószínűségi változó 
+#a $2$ egy kis környezetéből veszi fel az értékét, 
+#vagy annak, hogy egy $(4, 15)$ szabadsági fokú $F$-eloszlású 
+#valószínűségi változó veszi fel az értékét a $2$ egy kis környezetéből? (6p)
+f_khi <- dchisq(2, df = 10)
+f_F <- df(2, df1 = 4, df2 = 15)
+cat("t(10) sűrűsége:", f_khi, "F(4,15) sűrűsége:", f_F, "\n")
+#t(10) sűrűsége: 0.007664155 F(4,15) sűrűsége: 0.1562788 
+#VÁLASZ: F nagyobb valószínűséggel vesz fel értéket a 2 kis környezetéből
+#(c) Legalább mennyi egy $10$ szabadsági fokú 
+#$\chi^2$-eloszlású valószínűségi változó értéke $0.90$ valószínűséggel? (6p)
+
